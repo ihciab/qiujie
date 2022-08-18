@@ -33,23 +33,23 @@ public:
 		right = r;
 	}
 };
-void push(vector<char> v, TreeNode* tem)
-{
-	v.push_back(tem->val);
-	TreeNode* lfind = tem->left;
-	TreeNode* rfind = tem->right;
-	if (lfind != NULL)
-	{
-		push(v, lfind);
-	}
-	if (rfind != NULL)
-	{
-
-		push(v, rfind);
-	}
-
-
-}
+//void push(vector<char> v, TreeNode* tem)
+//{
+//	v.push_back(tem->val);
+//	TreeNode* lfind = tem->left;
+//	TreeNode* rfind = tem->right;
+//	if (lfind != NULL)
+//	{
+//		push(v, lfind);
+//	}
+//	if (rfind != NULL)
+//	{
+//
+//		push(v, rfind);
+//	}
+//
+//
+//}
 //找到子串中是否有+-符号
 int getfirfuhao(string euqation, int i)
 {
@@ -113,7 +113,7 @@ void CreatTree(string euqation, TreeNode* root, int i)
 		cout << "右节点子串" << rjudge << "->" << endl;
 		ljudge = euqation.substr(0, k);            //左边子串
 		cout << "左节点子串" << ljudge << "->" << endl;
-		
+
 	}
 	if (k == 0)
 	{
@@ -165,26 +165,28 @@ void CreatTree(string euqation, TreeNode* root, int i)
 }
 void main()
 {
-	TreeNode euqation;
+	/*TreeNode euqation;*/
 
-	string test = "21*x*3+(3*5+1)+4*x+5=0";
-	euqation.val = '=';
+	string test = "3+21.2*2*x1*3+(3*5+1)+4*x2+5=0";
+	/*euqation.val = '=';
 	euqation.right = new TreeNode('0');
 	euqation.left = new TreeNode('+');
-	CreatTree(test, euqation.left, test.size() - 2);
-	vector<char> vec;
+	CreatTree(test, euqation.left, test.size() - 2);*/
+	/*vector<char> vec;*/
 
 	//将树结构遍历放入vector 中
-	push(vec, &euqation);
+	/*push(vec, &euqation);
 	cout << "vec：" << endl;
 	for (vector<char>::iterator it = vec.begin(); it != vec.end(); it++)
 	{
 
 		cout << *it;
 
-	}
+	}*/
 	cout << endl;
 	analyze(test);
+	
+
 
 	//cout << "选择方程种类";
 	//一元多次 多元一次 多元多次 一元微分方程 矩阵方程    2*x+3*5+1=4*x-5

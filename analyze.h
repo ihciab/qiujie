@@ -104,9 +104,9 @@ char string_to_char(string s)
 int judge(char tem)
 {
 
-	if (tem == '+' || tem == '-' || tem == '*' || tem == '/' || tem == '^' || tem == '!' || tem == '(' || tem == ')'  )
+	if (tem == '+' || tem == '-' || tem == '*' || tem == '/' || tem == '^' || tem == '!' || tem == '(' || tem == ')')
 		return 1;
-	if (tem >= '0' && tem <= '9')
+	if (tem >= '0' && tem <= '9' || tem == '.')
 		return 0;
 	if (tem >= 'a' && tem <= 'z')
 		return 2;
@@ -116,38 +116,50 @@ void analyze(string equation)
 {
 	string number;    //用来记录连起的数字
 	string var;       //用来记录变量
-	queue<mydata>euqa;  //队列用来存放词语
-	int  tooken;        //记录处理状态 0表示数字 1表示符号 2表示变量
+	vector<mydata>euqa;  //容器用来存放词语
+	int  tooken = 0;        //记录处理状态 0表示数字 1表示符号 2表示变量
 	for (int i = 0; i < equation.size(); ++i)
 	{
-		// "2*x*3+3*5+1+4*x+5=0";
-		tooken = judge(equation[i]);
+		// "21*x1*3+(3*5+1)+4*x2+5=0";
+
 		switch (tooken)
 		{
-		case 0: number.push_back(equation[i]);	break;
+		case 0: number.push_back(equation[i]); //数字放入临时数字中
+
+			tooken = judge(equation[i + 1]);
+			break;
 		case 1:
 		{
 			if (!var.empty())
 			{
-				mydata tem_x(string_to_char(var));
-				euqa.push(tem_x);
+				mydata tem_x(string_to_char(var));  //变量拼接
+				euqa.push_back(tem_x);
 				var.clear();
 
 			}
 			if (!number.empty())
 			{
-				mydata tem_number(string_to_double(number));
-				euqa.push(tem_number);
+				mydata tem_number(string_to_double(number));  //数字拼接转为double
+				euqa.push_back(tem_number);
 				number.clear();
 			}
-			euqa.push(equation[i]);
+			euqa.push_back(equation[i]);
+
+			tooken = judge(equation[i + 1]);
+			break;
 		}
-		break;
-		case 2:var.push_back(equation[i]);	break;
+
+		case 2:var.push_back(equation[i]);
+			if (judge(equation[i + 1]) == 0 || judge(equation[i + 1]) == 2)  //如果下一个为数字或字母 则继续执行情况2 否则为符号执行case 1
+			{
+				tooken = 2;
+
+			}
+			else tooken = 1;	break;
 		case 3:if (!var.empty())
 		{
 			mydata tem_x(string_to_char(var));
-			euqa.push(tem_x);
+			euqa.push_back(tem_x);
 			var.clear();
 
 		}
@@ -155,7 +167,7 @@ void analyze(string equation)
 			  if (!number.empty())
 			  {
 				  mydata tem_number(string_to_double(number));
-				  euqa.push(tem_number);
+				  euqa.push_back(tem_number);
 				  number.clear();
 			  }break;
 		default:
@@ -163,65 +175,176 @@ void analyze(string equation)
 		}
 	}
 
-	//找出系数;
-	double xindex=0;
-	double numindex=0;
-	int flag = 0;//操作标志 0表示number相加 1表示number相乘；2表示x相加 3表示x相乘
-	//"21*x*3+(3*5+1)+4*x+5=0";
-
-	while (!euqa.empty())
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
 	{
-		if (!(euqa.front().type))                               //如果为数字
-		{
-			switch (flag)
+
+		cout << *it << "|";
+	}
+	cout << endl;
+
+
+
+	//找出系数;
+	int xrank = 0;                  //x的次数
+	//	vector<vector<double>> xishu //系数由次数低到高存储
+	double xishu=1;
+	int flag = 0;         //操作标志
+	vector<mydata> tem_opera;
+	/*"21*x*3+(3*5+1)+4*x+5=0";
+	要做的事
+	1. 定义运算符优先级
+	2.分块处理 括号内的单独进入一个vector 乘号分块计算；*/
+	//3.对于mydata type改为int 区分数字 符号 变量 
+	//4.兼容阶乘与乘方 5.begin（）处报错需要修改
+
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+		if (it->type || flag == 0)       //是符号
+		{                  //先考虑括号
+			if (it->opera == '(')  //是左括号则flag=0 直到找到右括号
 			{
-			case 0:
-				flag = 5;
-				while(flag!=0)
+				tem_opera.push_back(*it);
+				flag = 0;
+				continue;
+
+			}
+			if (it->opera == ')')
 			{
-					double tem_number = 0;
-					if (!(euqa.front().type))
+
+
+
+				flag = 1;
+			}
+			if (it->opera == '*')
+			{
+				if (!(it - 1)->type && !(it + 1)->type && flag != 3)//左右两侧都为数字
+				{
+					//直接运算并且用数字代替左右数字与乘号
+					it--;
+					double num1 = (it)->number;
+					double num2 = (it + 2)->number;
+					double num3 = num1 * num2;
+					it = euqa.erase(it, it + 2);
+					*it = num3;
+					flag = 4;
+
+				}
+				if (!(it - 1)->type && !(it + 1)->type && flag == 3)//左右两侧都为数字且为x系数求解时
+				{
+					//直接运算并且用数字代替左右数字与乘号
+					it--;
+					double num1 = (it)->number;
+					double num2 = (it + 2)->number;
+					double num3 = num1 * num2;
+					it = euqa.erase(it, it + 2);
+					*it = num3;
+					xishu *= num3;
+
+				}
+				if ((it + 1)->opera == 'x' || ((it - 1)->opera == 'x'))//有变量
+				{
+					flag = 3;
+					xrank++;
+					if (flag == 3)
 					{
-						tem_number = euqa.front().number;
+
+						double num0 = (it - 1)->number;
+						it = euqa.erase(it - 1, it + 1);
+						*it = num0;
+						xishu *= num0;
 
 					}
-				xindex += euqa.front().number; break;
-				euqa.pop();
+				}
+				//if ((it + 1)->type || ((it - 1)->type))//有变量
+				//{
+				//	flag = 3;
+				//	xrank++;
+				//	if (flag == 3)
+				//	{
+				//		if ((it + 1)->type)                          //右侧有变量
+				//		{
+
+				//			double number0 = (it - 1)->number;
+				//			it = euqa.erase(it - 1, it + 1);
+				//			*it = number0;
+				//			xishu[xrank] *= number0;
+
+				//		
+				//		}
+				//		if ((it - 1)->type )                          //左侧有变量
+				//		{
+				//		
+				//			double number0 = (it - 1)->number;
+				//			it = euqa.erase(it - 1, it + 1);
+				//			*it = number0;
+				//			xishu[xrank] *= number0;
+				//			
+				//			
+				//		}
+				//	}
+				//}
+
 			}
-			case 1:xindex *= euqa.front().number; euqa.pop(); break;
-			default:
-				break;
-			}
-			
-
-
-		}
-		if ((euqa.front().type) && judge(euqa.front().opera) == 3)//如果为变量
-		{
-
-
-		}
-		if (euqa.front().type)
-		{
-			if (euqa.front().opera == '+')
+			if (it->opera == '+' || it->opera == '-')
 			{
-				flag = 0;
-				euqa.pop();
-			}
-			if (euqa.front().opera == '*')
-			{
+
 				flag = 1;
-				euqa.pop();
+
+				continue;
 			}
-			
+		}
+	}
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
 
-
-
-        	}
-
-
-		/*cout << euqa.front()<<"|";
-		euqa.pop();*/
-
+		cout << *it;
 	}
 }
+
+
+//	if (!(euqa.front().type))                               //如果为数字
+//	{
+//		switch (flag)
+//		{
+//		case 0:
+//			flag = 5;
+//			while(flag!=0)
+//		{
+//				double tem_number = 0;
+//				if (!(euqa.front().type))
+//				{
+//					tem_number = euqa.front().number;
+
+//				}
+//			xindex += euqa.front().number; break;
+//			euqa.pop();
+//		}
+//		case 1:xindex *= euqa.front().number; euqa.pop(); break;
+//		default:
+//			break;
+//		}
+//		
+
+
+//	}
+//	if ((euqa.front().type) && judge(euqa.front().opera) == 3)//如果为变量
+//	{
+
+
+//	}
+//	if (euqa.front().type)
+//	{
+//		if (euqa.front().opera == '+')
+//		{
+//			flag = 0;
+//			euqa.pop();
+//		}
+//		if (euqa.front().opera == '*')
+//		{
+//			flag = 1;
+//			euqa.pop();
+//		}
+//		
+
+
+
