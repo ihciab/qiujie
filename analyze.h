@@ -7,25 +7,45 @@
 #include<vector>
 #include<algorithm>
 #include<string>
+#include<math.h>
+
 using namespace std;
 class mydata
 {
 public:
-	double number;    //数字
-	char opera;       //运算符
-	bool type;        //判断是否为运算符 true表示是运算符
-	mydata(double a)
+	char opera;
+	double  number;
+	int kind;     //类型为变量时kind为1 否则为0
+	mydata* left;
+	mydata* right;
+	bool type;
+	mydata(double num)
 	{
-		number = a;
+		number = num;
+		kind = 0;
 		type = false;
+
 	}
-	mydata(char ope)
+	mydata(char sym)
 	{
-		opera = ope;
-		type = true;
+
+		opera = sym;
+		if (sym == '+' || sym == '-' || sym == '*' || sym == '/' || sym == '^' || sym == '!'||sym=='('||sym==')')
+		{
+			kind = 0;
+			type = true;
+
+		}
+		else
+		{
+			kind = 1;
+			type = true;
+		}
 	}
+	mydata()
+	{
 
-
+	}
 };
 ostream& operator<<(ostream& o, mydata& data)
 {
@@ -40,11 +60,22 @@ ostream& operator<<(ostream& o, mydata& data)
 		return o;
 	}
 }
-
-
 double string_to_double(string s)
 {
 	int string_type = 0;//0表示整数，1表示带小数点
+	for (string::iterator it = s.begin(); it != s.end(); it++)
+	{
+		if (*it == 'e')
+		{
+			return 2.7182818;
+
+
+		}
+
+	}
+
+
+
 	for (string::iterator it = s.begin(); it != s.end(); it++)
 	{
 		if (*it == '.')
@@ -106,18 +137,19 @@ int judge(char tem)
 
 	if (tem == '+' || tem == '-' || tem == '*' || tem == '/' || tem == '^' || tem == '!' || tem == '(' || tem == ')')
 		return 1;
-	if (tem >= '0' && tem <= '9' || tem == '.')
+	if (tem >= '0' && tem <= '9' || tem == '.' || tem =='e')
 		return 0;
-	if (tem >= 'a' && tem <= 'z')
+
+	if ((tem >= 'a' && tem < 'e')||(tem>'e'&&tem<='z'))
 		return 2;
 	return 3;
 }
-void analyze(string equation)
+void analyze(string equation, vector<mydata>& vec)
 {
 	string number;    //用来记录连起的数字
 	string var;       //用来记录变量
 	vector<mydata>euqa;  //容器用来存放词语
-	int  tooken = 0;        //记录处理状态 0表示数字 1表示符号 2表示变量
+	int  tooken = judge(equation[0]);        //记录处理状态 0表示数字 1表示符号 2表示变量
 	for (int i = 0; i < equation.size(); ++i)
 	{
 		// "21*x1*3+(3*5+1)+4*x2+5=0";
@@ -133,6 +165,7 @@ void analyze(string equation)
 			if (!var.empty())
 			{
 				mydata tem_x(string_to_char(var));  //变量拼接
+				tem_x.kind = 1;
 				euqa.push_back(tem_x);
 				var.clear();
 
@@ -140,9 +173,12 @@ void analyze(string equation)
 			if (!number.empty())
 			{
 				mydata tem_number(string_to_double(number));  //数字拼接转为double
+
+				tem_number.kind = 0;
 				euqa.push_back(tem_number);
 				number.clear();
 			}
+
 			euqa.push_back(equation[i]);
 
 			tooken = judge(equation[i + 1]);
@@ -153,7 +189,7 @@ void analyze(string equation)
 			if (judge(equation[i + 1]) == 0 || judge(equation[i + 1]) == 2)  //如果下一个为数字或字母 则继续执行情况2 否则为符号执行case 1
 			{
 				tooken = 2;
-
+				break;
 			}
 			else tooken = 1;	break;
 		case 3:if (!var.empty())
@@ -167,6 +203,7 @@ void analyze(string equation)
 			  if (!number.empty())
 			  {
 				  mydata tem_number(string_to_double(number));
+				  tem_number.kind = 0;
 				  euqa.push_back(tem_number);
 				  number.clear();
 			  }break;
@@ -174,177 +211,232 @@ void analyze(string equation)
 			break;
 		}
 	}
+	vec = euqa;
+}
+double calcaulator(vector<mydata>euqa, double x)
+{
+	//先把变量替换为x的值
 
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+		if (it->kind==1)
+		{
+			it->number = x;
+			it->opera = '0';
+			it->kind = 0;
+			it->type = false;
+		}
+	}
+	vector<mydata> tem_opera;
+	vector<mydata>::iterator tem_iter;
+
+	//要做的事
+	//1. 定义运算符优先级
+	
+	//4.兼容阶乘与乘方 
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+
+		//先考虑括号
+		if (it->opera == '(')                       //是左括号则flag=0 直到找到右括号
+		{
+			double tem_num = 0;
+			tem_iter = it;                               //保存左括号的迭代器
+			while (it->opera != ')')
+			{
+				tem_opera.push_back(*it);
+				it++;
+			}
+			if (it->opera == ')')
+			{
+				
+
+				//先处理括号内的^与*内容
+				for (vector<mydata>::iterator iter = tem_opera.begin(); iter != tem_opera.end(); iter++)
+				{
+					if (iter->opera == '^')
+					{
+						if (!(iter - 1)->type && !(iter + 1)->type)//左右两侧都为数字
+						{
+							double num1 = (iter - 1)->number;
+							double num2 = (iter + 1)->number;
+							double num3 = pow(num1, num2);
+							iter = tem_opera.erase(iter - 1, iter + 1);
+							*iter = num3;
+						}
+					}
+
+				}
+				for (vector<mydata>::iterator iter = tem_opera.begin(); iter != tem_opera.end();iter++ )
+				{
+					if (iter->opera == '*')
+					{
+
+						if (!(iter - 1)->type && !(iter + 1)->type)//左右两侧都为数字
+						{
+							//直接运算并且用数字代替左右数字与乘号
+
+							double num1 = (iter - 1)->number;
+							double num2 = (iter + 1)->number;
+							double num3 = num1 * num2;
+		
+							iter = tem_opera.erase(iter-1,iter+1);
+							*iter = num3;
+						}
+					}
+					
+				}
+				//记录下第一个数字
+				for (vector<mydata>::iterator iter = tem_opera.begin(); iter != tem_opera.end(); iter++)
+				{
+					if (!iter->type)
+					{
+						tem_num = iter->number;
+						break;
+					}
+					else tem_num = 0;
+				}
+
+				//再处理+ -
+				for (vector<mydata>::iterator iter = tem_opera.begin(); iter != tem_opera.end(); iter++)
+				{
+					if (iter->opera == '+')
+					{
+						if (!(iter - 1)->type && !(iter + 1)->type)
+						{
+							double num1 = (iter - 1)->number;
+							double num2 = (iter + 1)->number;
+							
+							double num3 = num1 + num2;
+							iter = tem_opera.erase(iter - 1, iter + 1);
+							*iter = num3;
+							tem_num += num2;
+							
+
+							
+
+
+						}
+					}
+					if (iter->opera == '-')
+					{
+						if (!(iter - 1)->type && !(iter + 1)->type)
+						{
+							double num1 = (iter - 1)->number;
+							double num2 = (iter + 1)->number;
+							double num3 = num1 - num2;
+							iter = tem_opera.erase(iter - 1, iter + 1);
+							*iter = num3;
+							tem_num -= num2;
+						}
+					}
+
+				}
+			}
+		
+			cout << "经运算括号内的值为:" << tem_num;
+			it = euqa.erase(tem_iter, it);
+			*it = tem_num;
+		}
+	}
+
+	cout << "去括号的式子为:" << endl;
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+		
+		cout << *it<<"|";
+	}
+	//在处理括号外
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+		if (it->opera == '^')
+		{
+			if (!(it - 1)->type && !(it + 1)->type)//左右两侧都为数字
+			{
+				double num1 = (it - 1)->number;
+				double num2 = (it + 1)->number;
+				double num3 = pow(num1, num2);
+				it = euqa.erase(it - 1, it + 1);
+				*it = num3;
+			}
+		}
+
+	}
+	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
+	{
+		if (it->type)       //是符号
+		{
+
+			if (it->opera == '*')
+			{
+				if (!(it - 1)->type && !(it + 1)->type)    //左右两侧都为数字
+				{
+					//直接运算并且用数字代替左右数字与乘号
+					it--;
+					double num1 = (it)->number;
+					double num2 = (it + 2)->number;
+					double num3 = num1 * num2;
+					it = euqa.erase(it, it + 2);
+					*it = num3;
+				}
+			}
+			if (it->opera == '/')
+			{
+				if (!(it - 1)->type && !(it + 1)->type)    //左右两侧都为数字
+				{
+					//直接运算并且用数字代替左右数字与乘号
+					it--;
+					double num1 = (it)->number;
+					double num2 = (it + 2)->number;
+					double num3 = num1 * (1.00/num2);
+					it = euqa.erase(it, it + 2);
+					*it = num3;
+				}
+			}
+		}
+	}
+	cout <<"运算乘法后的式子"<< endl;
 	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
 	{
 
 		cout << *it << "|";
 	}
-	cout << endl;
-
-
-
-	//找出系数;
-	int xrank = 0;                  //x的次数
-	//	vector<vector<double>> xishu //系数由次数低到高存储
-	double xishu=1;
-	int flag = 0;         //操作标志
-	vector<mydata> tem_opera;
-	/*"21*x*3+(3*5+1)+4*x+5=0";
-	要做的事
-	1. 定义运算符优先级
-	2.分块处理 括号内的单独进入一个vector 乘号分块计算；*/
-	//3.对于mydata type改为int 区分数字 符号 变量 
-	//4.兼容阶乘与乘方 5.begin（）处报错需要修改
-
 	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
 	{
-		if (it->type || flag == 0)       //是符号
-		{                  //先考虑括号
-			if (it->opera == '(')  //是左括号则flag=0 直到找到右括号
+
+		if (it->opera == '+')
+		{
+			if (!(it - 1)->type && !(it + 1)->type)
 			{
-				tem_opera.push_back(*it);
-				flag = 0;
-				continue;
-
-			}
-			if (it->opera == ')')
-			{
-
-
-
-				flag = 1;
-			}
-			if (it->opera == '*')
-			{
-				if (!(it - 1)->type && !(it + 1)->type && flag != 3)//左右两侧都为数字
-				{
-					//直接运算并且用数字代替左右数字与乘号
-					it--;
-					double num1 = (it)->number;
-					double num2 = (it + 2)->number;
-					double num3 = num1 * num2;
-					it = euqa.erase(it, it + 2);
-					*it = num3;
-					flag = 4;
-
-				}
-				if (!(it - 1)->type && !(it + 1)->type && flag == 3)//左右两侧都为数字且为x系数求解时
-				{
-					//直接运算并且用数字代替左右数字与乘号
-					it--;
-					double num1 = (it)->number;
-					double num2 = (it + 2)->number;
-					double num3 = num1 * num2;
-					it = euqa.erase(it, it + 2);
-					*it = num3;
-					xishu *= num3;
-
-				}
-				if ((it + 1)->opera == 'x' || ((it - 1)->opera == 'x'))//有变量
-				{
-					flag = 3;
-					xrank++;
-					if (flag == 3)
-					{
-
-						double num0 = (it - 1)->number;
-						it = euqa.erase(it - 1, it + 1);
-						*it = num0;
-						xishu *= num0;
-
-					}
-				}
-				//if ((it + 1)->type || ((it - 1)->type))//有变量
-				//{
-				//	flag = 3;
-				//	xrank++;
-				//	if (flag == 3)
-				//	{
-				//		if ((it + 1)->type)                          //右侧有变量
-				//		{
-
-				//			double number0 = (it - 1)->number;
-				//			it = euqa.erase(it - 1, it + 1);
-				//			*it = number0;
-				//			xishu[xrank] *= number0;
-
-				//		
-				//		}
-				//		if ((it - 1)->type )                          //左侧有变量
-				//		{
-				//		
-				//			double number0 = (it - 1)->number;
-				//			it = euqa.erase(it - 1, it + 1);
-				//			*it = number0;
-				//			xishu[xrank] *= number0;
-				//			
-				//			
-				//		}
-				//	}
-				//}
-
-			}
-			if (it->opera == '+' || it->opera == '-')
-			{
-
-				flag = 1;
-
-				continue;
+				double num1 = (it - 1)->number;
+				double num2 = (it + 1)->number;
+				double num3 = num1 + num2;
+				it = euqa.erase(it - 1, it + 1);
+				*it = num3;
 			}
 		}
-	}
-	for (vector<mydata>::iterator it = euqa.begin(); it != euqa.end(); it++)
-	{
+		if (it->opera == '-')
+		{
+			if (!(it - 1)->type && !(it + 1)->type)
+			{
+				double num1 = (it - 1)->number;
+				double num2 = (it + 1)->number;
+				double num3 = num1 - num2;
+				it = euqa.erase(it - 1, it + 1);
+				*it = num3;
+			}
+		}
 
-		cout << *it;
+
 	}
+	cout << euqa[0].number;
+	return euqa[0].number;
 }
 
 
-//	if (!(euqa.front().type))                               //如果为数字
-//	{
-//		switch (flag)
-//		{
-//		case 0:
-//			flag = 5;
-//			while(flag!=0)
-//		{
-//				double tem_number = 0;
-//				if (!(euqa.front().type))
-//				{
-//					tem_number = euqa.front().number;
-
-//				}
-//			xindex += euqa.front().number; break;
-//			euqa.pop();
-//		}
-//		case 1:xindex *= euqa.front().number; euqa.pop(); break;
-//		default:
-//			break;
-//		}
-//		
 
 
-//	}
-//	if ((euqa.front().type) && judge(euqa.front().opera) == 3)//如果为变量
-//	{
 
-
-//	}
-//	if (euqa.front().type)
-//	{
-//		if (euqa.front().opera == '+')
-//		{
-//			flag = 0;
-//			euqa.pop();
-//		}
-//		if (euqa.front().opera == '*')
-//		{
-//			flag = 1;
-//			euqa.pop();
-//		}
-//		
 
 
 
